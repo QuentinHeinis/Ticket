@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller;
 
+use App\Entity\Ticket;
 use App\Entity\User;
+use App\Enum\Priority;
+use App\Enum\Status;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -13,6 +16,7 @@ final class TicketControllerTest extends WebTestCase
 {
     private KernelBrowser $client;
     private EntityManagerInterface $entityManager;
+    private User $alice;
 
     protected function setUp(): void
     {
@@ -32,7 +36,7 @@ final class TicketControllerTest extends WebTestCase
         $connection->executeStatement('DELETE FROM ticket');
         $connection->executeStatement('DELETE FROM app_user');
 
-        $this->createUser('Alice', 'alice@pomzed.ch', 5);
+        $this->alice = $this->createUser('Alice', 'alice@pomzed.ch', 5);
         $this->createUser('Bob', 'bob@pomzed.ch', 3);
         $this->createUser('Charlie', 'charlie@pomzed.ch', 8);
 
@@ -118,6 +122,56 @@ final class TicketControllerTest extends WebTestCase
         $this->assertArrayNotHasKey('email', $data['assignee']);
     }
 
+    public function testValidStatusTransitionReturns200(): void
+    {
+        $ticket = $this->createTicket(Status::Assigned, $this->alice);
+
+        $this->client->jsonRequest('PATCH', '/api/tickets/'.$ticket->getId().'/status', [
+            'status' => 'in_progress',
+        ]);
+
+        $this->assertResponseStatusCodeSame(200);
+
+        $data = $this->decodeResponse();
+
+        $this->assertSame('in_progress', $data['status']);
+    }
+
+    public function testForbiddenStatusTransitionReturns409(): void
+    {
+        $ticket = $this->createTicket(Status::New, $this->alice);
+
+        $this->client->jsonRequest('PATCH', '/api/tickets/'.$ticket->getId().'/status', [
+            'status' => 'resolved',
+        ]);
+
+        $this->assertResponseStatusCodeSame(409);
+
+        $data = $this->decodeResponse();
+
+        $this->assertArrayHasKey('error', $data);
+    }
+
+    public function testUnknownTicketReturns404(): void
+    {
+        $this->client->jsonRequest('PATCH', '/api/tickets/999999/status', [
+            'status' => 'in_progress',
+        ]);
+
+        $this->assertResponseStatusCodeSame(404);
+    }
+
+    public function testUnknownStatusReturns422(): void
+    {
+        $ticket = $this->createTicket(Status::Assigned, $this->alice);
+
+        $this->client->jsonRequest('PATCH', '/api/tickets/'.$ticket->getId().'/status', [
+            'status' => 'critical',
+        ]);
+
+        $this->assertResponseStatusCodeSame(422);
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -139,7 +193,7 @@ final class TicketControllerTest extends WebTestCase
         $this->assertLessThan(500, $statusCode);
     }
 
-    private function createUser(string $name, string $email, int $capacity): void
+    private function createUser(string $name, string $email, int $capacity): User
     {
         $user = (new User())
             ->setName($name)
@@ -150,5 +204,19 @@ final class TicketControllerTest extends WebTestCase
             ->setCapacity($capacity);
 
         $this->entityManager->persist($user);
+
+        return $user;
+    }
+
+    private function createTicket(Status $status, User $assignee): Ticket
+    {
+        $ticket = new Ticket('Ticket '.$status->value, 'Description', Priority::Normal);
+        $ticket->setStatus($status);
+        $ticket->setAssignee($assignee);
+
+        $this->entityManager->persist($ticket);
+        $this->entityManager->flush();
+
+        return $ticket;
     }
 }
