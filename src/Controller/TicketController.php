@@ -6,11 +6,15 @@ namespace App\Controller;
 
 use App\Dto\ChangeStatusRequest;
 use App\Dto\CreateTicketRequest;
+use App\Dto\ReassignRequest;
 use App\Entity\Ticket;
 use App\Exception\CapacityExceededException;
 use App\Exception\InvalidStatusTransitionException;
+use App\Exception\ReassignmentNotAllowedException;
 use App\Http\TicketResponseMapper;
+use App\Repository\UserRepository;
 use App\Service\Ticket\TicketCreationService;
+use App\Service\Ticket\TicketReassignmentService;
 use App\Service\Ticket\TicketStatusService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -23,6 +27,8 @@ final class TicketController extends AbstractController
         private readonly TicketCreationService $ticketCreationService,
         private readonly TicketResponseMapper $ticketResponseMapper,
         private readonly TicketStatusService $ticketStatusService,
+        private readonly TicketReassignmentService $ticketReassignmentService,
+        private readonly UserRepository $userRepository,
     ) {
     }
 
@@ -50,6 +56,40 @@ final class TicketController extends AbstractController
         try {
             $this->ticketStatusService->changeStatus($ticket, $request->status);
         } catch (InvalidStatusTransitionException|CapacityExceededException $exception) {
+            return new JsonResponse(
+                ['error' => $exception->getMessage()],
+                JsonResponse::HTTP_CONFLICT,
+            );
+        }
+
+        return new JsonResponse(
+            $this->ticketResponseMapper->toArray($ticket),
+            JsonResponse::HTTP_OK,
+        );
+    }
+
+    #[Route(
+        '/api/tickets/{id}/assignee',
+        name: 'api_tickets_reassign',
+        methods: ['PATCH'],
+        format: 'json',
+    )]
+    public function reassign(
+        #[MapRequestPayload] ReassignRequest $request,
+        Ticket $ticket,
+    ): JsonResponse {
+        $assignee = $this->userRepository->find($request->assigneeId);
+
+        if (null === $assignee) {
+            return new JsonResponse(
+                ['error' => 'Utilisateur introuvable.'],
+                JsonResponse::HTTP_NOT_FOUND,
+            );
+        }
+
+        try {
+            $this->ticketReassignmentService->reassign($ticket, $assignee);
+        } catch (ReassignmentNotAllowedException|CapacityExceededException $exception) {
             return new JsonResponse(
                 ['error' => $exception->getMessage()],
                 JsonResponse::HTTP_CONFLICT,

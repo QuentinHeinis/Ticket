@@ -17,6 +17,7 @@ final class TicketControllerTest extends WebTestCase
     private KernelBrowser $client;
     private EntityManagerInterface $entityManager;
     private User $alice;
+    private User $bob;
 
     protected function setUp(): void
     {
@@ -37,7 +38,7 @@ final class TicketControllerTest extends WebTestCase
         $connection->executeStatement('DELETE FROM app_user');
 
         $this->alice = $this->createUser('Alice', 'alice@pomzed.ch', 5);
-        $this->createUser('Bob', 'bob@pomzed.ch', 3);
+        $this->bob = $this->createUser('Bob', 'bob@pomzed.ch', 3);
         $this->createUser('Charlie', 'charlie@pomzed.ch', 8);
 
         $this->entityManager->flush();
@@ -168,6 +169,65 @@ final class TicketControllerTest extends WebTestCase
         $this->client->jsonRequest('PATCH', '/api/tickets/'.$ticket->getId().'/status', [
             'status' => 'critical',
         ]);
+
+        $this->assertResponseStatusCodeSame(422);
+    }
+
+    public function testValidReassignmentReturns200(): void
+    {
+        $ticket = $this->createTicket(Status::Assigned, $this->alice);
+
+        $this->client->jsonRequest('PATCH', '/api/tickets/'.$ticket->getId().'/assignee', [
+            'assigneeId' => $this->bob->getId(),
+        ]);
+
+        $this->assertResponseStatusCodeSame(200);
+
+        $data = $this->decodeResponse();
+
+        $this->assertSame($this->bob->getId(), $data['assignee']['id']);
+    }
+
+    public function testReassigningClosedTicketReturns409(): void
+    {
+        $ticket = $this->createTicket(Status::Closed, $this->alice);
+
+        $this->client->jsonRequest('PATCH', '/api/tickets/'.$ticket->getId().'/assignee', [
+            'assigneeId' => $this->bob->getId(),
+        ]);
+
+        $this->assertResponseStatusCodeSame(409);
+
+        $data = $this->decodeResponse();
+
+        $this->assertArrayHasKey('error', $data);
+    }
+
+    public function testReassigningToUnknownUserReturns404(): void
+    {
+        $ticket = $this->createTicket(Status::Assigned, $this->alice);
+
+        $this->client->jsonRequest('PATCH', '/api/tickets/'.$ticket->getId().'/assignee', [
+            'assigneeId' => 999999,
+        ]);
+
+        $this->assertResponseStatusCodeSame(404);
+
+        $data = $this->decodeResponse();
+
+        $this->assertArrayHasKey('error', $data);
+    }
+
+    public function testReassignmentWithoutAssigneeIdReturns422(): void
+    {
+        $ticket = $this->createTicket(Status::Assigned, $this->alice);
+
+        $this->client->request(
+            'PATCH',
+            '/api/tickets/'.$ticket->getId().'/assignee',
+            server: ['CONTENT_TYPE' => 'application/json'],
+            content: '{}',
+        );
 
         $this->assertResponseStatusCodeSame(422);
     }
