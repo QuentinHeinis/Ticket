@@ -48,6 +48,7 @@ final class TicketController extends AbstractController
         name: 'api_tickets_change_status',
         methods: ['PATCH'],
         format: 'json',
+        requirements: ['id' => '\d+'],
     )]
     public function changeStatus(
         #[MapRequestPayload] ChangeStatusRequest $request,
@@ -73,6 +74,7 @@ final class TicketController extends AbstractController
         name: 'api_tickets_reassign',
         methods: ['PATCH'],
         format: 'json',
+        requirements: ['id' => '\d+'],
     )]
     public function reassign(
         #[MapRequestPayload] ReassignRequest $request,

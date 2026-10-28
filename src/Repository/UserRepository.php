@@ -25,7 +25,7 @@ class UserRepository extends ServiceEntityRepository
     /**
      * @return list<UserLoad>
      */
-    public function findLoads(): array
+    public function findLoads(bool $onlyAvailable = true): array
     {
         $caseParts = [];
         $parameters = [
@@ -43,11 +43,12 @@ class UserRepository extends ServiceEntityRepository
                 COALESCE(SUM(CASE %s ELSE 0 END), 0) AS load
             FROM %s u
             LEFT JOIN %s t ON t.assignee = u AND t.status IN (:statuses)
-            WHERE u.available = true
+            %s
             GROUP BY u.id',
             implode(' ', $caseParts),
             User::class,
             Ticket::class,
+            $onlyAvailable ? 'WHERE u.available = true' : '',
         );
 
         $query = $this->getEntityManager()
@@ -73,5 +74,46 @@ class UserRepository extends ServiceEntityRepository
                 $lastAssignedAt,
             );
         }, $query->getResult());
+    }
+
+    /**
+     * @return list<array{name: string, activeTickets: int, currentLoad: int, capacity: int}>
+     */
+    public function findDashboardRows(): array
+    {
+        $caseParts = [];
+        $parameters = [
+            'statuses' => [Status::Assigned->value, Status::InProgress->value],
+        ];
+
+        foreach (Priority::cases() as $index => $priority) {
+            $caseParts[] = sprintf('WHEN t.priority = :priority_%d THEN %d', $index, $priority->points());
+            $parameters[sprintf('priority_%d', $index)] = $priority->value;
+        }
+
+        $dql = sprintf(
+            'SELECT u.name AS name, u.capacity AS capacity,
+                COUNT(t.id) AS activeTickets,
+                COALESCE(SUM(CASE %s ELSE 0 END), 0) AS currentLoad
+            FROM %s u
+            LEFT JOIN %s t ON t.assignee = u AND t.status IN (:statuses)
+            GROUP BY u.id, u.name, u.capacity
+            ORDER BY u.name ASC',
+            implode(' ', $caseParts),
+            User::class,
+            Ticket::class,
+        );
+
+        $rows = $this->getEntityManager()
+            ->createQuery($dql)
+            ->setParameters($parameters)
+            ->getResult();
+
+        return array_map(static fn (array $row): array => [
+            'name' => (string) $row['name'],
+            'activeTickets' => (int) $row['activeTickets'],
+            'currentLoad' => (int) $row['currentLoad'],
+            'capacity' => (int) $row['capacity'],
+        ], $rows);
     }
 }
