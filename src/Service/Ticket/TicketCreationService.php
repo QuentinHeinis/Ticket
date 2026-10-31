@@ -7,6 +7,7 @@ namespace App\Service\Ticket;
 use App\Dto\CreateTicketRequest;
 use App\Entity\Ticket;
 use App\Entity\TicketHistory;
+use App\Entity\User;
 use App\Enum\HistoryType;
 use App\Service\Assignment\TicketAssignmentService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -19,9 +20,9 @@ final class TicketCreationService
     ) {
     }
 
-    public function create(CreateTicketRequest $request): Ticket
+    public function create(CreateTicketRequest $request, ?User $actor = null): Ticket
     {
-        $ticket = $this->entityManager->wrapInTransaction(function () use ($request): Ticket {
+        $ticket = $this->entityManager->wrapInTransaction(function () use ($request, $actor): Ticket {
             $ticket = new Ticket($request->title, $request->description, $request->priority);
 
             $this->entityManager->persist($ticket);
@@ -30,7 +31,7 @@ final class TicketCreationService
                 HistoryType::Created,
                 null,
                 $request->priority->value,
-                null,
+                $actor,
             ));
 
             return $ticket;

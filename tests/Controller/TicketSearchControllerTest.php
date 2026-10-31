@@ -39,6 +39,8 @@ final class TicketSearchControllerTest extends WebTestCase
         $this->alice = $this->createUser('Alice', 'alice@pomzed.ch', 5);
 
         $this->entityManager->flush();
+
+        $this->client->loginUser($this->alice);
     }
 
     public function testSearchReturnsExpectedKeys(): void

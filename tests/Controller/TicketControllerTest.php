@@ -42,6 +42,8 @@ final class TicketControllerTest extends WebTestCase
         $this->createUser('Charlie', 'charlie@pomzed.ch', 8);
 
         $this->entityManager->flush();
+
+        $this->client->loginUser($this->alice);
     }
 
     public function testValidPostCreatesAssignedTicket(): void

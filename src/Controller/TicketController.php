@@ -64,7 +64,7 @@ final class TicketController extends AbstractController
     #[Route('/api/tickets', name: 'api_tickets_create', methods: ['POST'])]
     public function create(#[MapRequestPayload] CreateTicketRequest $request): JsonResponse
     {
-        $ticket = $this->ticketCreationService->create($request);
+        $ticket = $this->ticketCreationService->create($request, $this->getUser());
 
         return new JsonResponse(
             $this->ticketResponseMapper->toArray($ticket),
@@ -84,7 +84,7 @@ final class TicketController extends AbstractController
         Ticket $ticket,
     ): JsonResponse {
         try {
-            $this->ticketStatusService->changeStatus($ticket, $request->status);
+            $this->ticketStatusService->changeStatus($ticket, $request->status, $this->getUser());
         } catch (InvalidStatusTransitionException|CapacityExceededException $exception) {
             return new JsonResponse(
                 ['error' => $exception->getMessage()],
@@ -119,7 +119,7 @@ final class TicketController extends AbstractController
         }
 
         try {
-            $this->ticketReassignmentService->reassign($ticket, $assignee);
+            $this->ticketReassignmentService->reassign($ticket, $assignee, $this->getUser());
         } catch (ReassignmentNotAllowedException|CapacityExceededException $exception) {
             return new JsonResponse(
                 ['error' => $exception->getMessage()],

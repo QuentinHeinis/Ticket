@@ -36,10 +36,12 @@ final class OverdueDashboardControllerTest extends WebTestCase
         $connection->executeStatement('DELETE FROM ticket');
         $connection->executeStatement('DELETE FROM app_user');
 
-        $this->createUser('Alice', 'alice@pomzed.ch', 5, true);
+        $alice = $this->createUser('Alice', 'alice@pomzed.ch', 5, true);
         $this->createUser('Charlie', 'charlie@pomzed.ch', 8, false);
 
         $this->entityManager->flush();
+
+        $this->client->loginUser($alice);
     }
 
     public function testDashboardReturnsExpectedKeys(): void
