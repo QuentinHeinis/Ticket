@@ -9,15 +9,19 @@ use App\Dto\CreateTicketRequest;
 use App\Dto\ReassignRequest;
 use App\Entity\Ticket;
 use App\Exception\CapacityExceededException;
+use App\Exception\InvalidSearchParameterException;
 use App\Exception\InvalidStatusTransitionException;
 use App\Exception\ReassignmentNotAllowedException;
 use App\Http\TicketResponseMapper;
+use App\Http\TicketSearchParser;
+use App\Repository\TicketRepository;
 use App\Repository\UserRepository;
 use App\Service\Ticket\TicketCreationService;
 use App\Service\Ticket\TicketReassignmentService;
 use App\Service\Ticket\TicketStatusService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\Routing\Attribute\Route;
 
@@ -29,7 +33,32 @@ final class TicketController extends AbstractController
         private readonly TicketStatusService $ticketStatusService,
         private readonly TicketReassignmentService $ticketReassignmentService,
         private readonly UserRepository $userRepository,
+        private readonly TicketRepository $ticketRepository,
+        private readonly TicketSearchParser $ticketSearchParser,
     ) {
+    }
+
+    #[Route('/api/tickets', name: 'api_tickets_search', methods: ['GET'], format: 'json')]
+    public function search(Request $request): JsonResponse
+    {
+        try {
+            $criteria = $this->ticketSearchParser->parse($request);
+            $result = $this->ticketRepository->search($criteria);
+        } catch (InvalidSearchParameterException $exception) {
+            return new JsonResponse(
+                ['error' => $exception->getMessage()],
+                JsonResponse::HTTP_UNPROCESSABLE_ENTITY,
+            );
+        }
+
+        return new JsonResponse([
+            'items' => array_map(
+                fn (Ticket $ticket): array => $this->ticketResponseMapper->toArray($ticket),
+                $result['items'],
+            ),
+            'nextCursor' => $result['nextCursor'],
+            'limit' => $criteria->limit,
+        ]);
     }
 
     #[Route('/api/tickets', name: 'api_tickets_create', methods: ['POST'])]

@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
+use App\Dto\TicketSearchCriteria;
 use App\Entity\Ticket;
 use App\Entity\User;
 use App\Enum\Priority;
 use App\Enum\Status;
+use App\Exception\InvalidSearchParameterException;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\QueryBuilder;
@@ -104,6 +106,121 @@ class TicketRepository extends ServiceEntityRepository
             'total' => (int) $row['total'],
             'unassigned' => (int) $row['unassigned'],
             'overdue' => (int) $row['overdue'],
+        ];
+    }
+
+    /**
+     * @return array{items: list<Ticket>, nextCursor: ?string}
+     */
+    public function search(TicketSearchCriteria $criteria): array
+    {
+        $qb = $this->createQueryBuilder('t')
+            ->leftJoin('t.assignee', 'a')
+            ->addSelect('a')
+            ->orderBy('t.createdAt', 'DESC')
+            ->addOrderBy('t.id', 'DESC')
+            ->setMaxResults($criteria->limit + 1);
+
+        if (null !== $criteria->status) {
+            $qb
+                ->andWhere('t.status = :searchStatus')
+                ->setParameter('searchStatus', $criteria->status->value);
+        }
+
+        if (null !== $criteria->priority) {
+            $qb
+                ->andWhere('t.priority = :searchPriority')
+                ->setParameter('searchPriority', $criteria->priority->value);
+        }
+
+        if (null !== $criteria->assigneeId) {
+            $qb
+                ->andWhere('t.assignee = :searchAssigneeId')
+                ->setParameter('searchAssigneeId', $criteria->assigneeId);
+        }
+
+        if (null !== $criteria->createdFrom) {
+            $qb
+                ->andWhere('t.createdAt >= :searchCreatedFrom')
+                ->setParameter(
+                    'searchCreatedFrom',
+                    $criteria->createdFrom->setTimezone(new \DateTimeZone('UTC')),
+                    Types::DATETIME_IMMUTABLE,
+                );
+        }
+
+        if (null !== $criteria->createdTo) {
+            $qb
+                ->andWhere('t.createdAt < :searchCreatedTo')
+                ->setParameter(
+                    'searchCreatedTo',
+                    $criteria->createdTo->setTimezone(new \DateTimeZone('UTC')),
+                    Types::DATETIME_IMMUTABLE,
+                );
+        }
+
+        if (null !== $criteria->cursor) {
+            $decoded = base64_decode($criteria->cursor, true);
+
+            if (false === $decoded) {
+                throw new InvalidSearchParameterException('Le paramètre "cursor" est malformé.');
+            }
+
+            $parts = explode('|', $decoded);
+
+            if (2 !== count($parts)) {
+                throw new InvalidSearchParameterException('Le paramètre "cursor" est malformé.');
+            }
+
+            [$cursorDateValue, $cursorIdValue] = $parts;
+
+            if (!ctype_digit($cursorIdValue)) {
+                throw new InvalidSearchParameterException('Le paramètre "cursor" est malformé.');
+            }
+
+            $cursorDate = \DateTimeImmutable::createFromFormat(
+                \DateTimeInterface::ATOM,
+                $cursorDateValue,
+            );
+
+            if (false === $cursorDate) {
+                throw new InvalidSearchParameterException('Le paramètre "cursor" est malformé.');
+            }
+
+            $errors = \DateTimeImmutable::getLastErrors();
+
+            if (false !== $errors && (0 < $errors['warning_count'] || 0 < $errors['error_count'])) {
+                throw new InvalidSearchParameterException('Le paramètre "cursor" est malformé.');
+            }
+
+            $qb
+                ->andWhere('(t.createdAt < :cursorCreatedAt OR (t.createdAt = :cursorCreatedAt AND t.id < :cursorId))')
+                ->setParameter(
+                    'cursorCreatedAt',
+                    $cursorDate->setTimezone(new \DateTimeZone('UTC')),
+                    Types::DATETIME_IMMUTABLE,
+                )
+                ->setParameter('cursorId', (int) $cursorIdValue);
+        }
+
+        /** @var list<Ticket> $items */
+        $items = $qb->getQuery()->getResult();
+        $nextCursor = null;
+
+        if (count($items) > $criteria->limit) {
+            array_pop($items);
+            $last = $items[array_key_last($items)];
+
+            $nextCursor = base64_encode(sprintf(
+                '%s|%d',
+                $last->getCreatedAt()->setTimezone(new \DateTimeZone('UTC'))->format(\DateTimeInterface::ATOM),
+                $last->getId(),
+            ));
+        }
+
+        return [
+            'items' => $items,
+            'nextCursor' => $nextCursor,
         ];
     }
 
