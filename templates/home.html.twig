@@ -1,0 +1,205 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Support — Tickets{% endblock %}
+
+{% block body %}
+    <div class="container">
+        <header class="app-header">
+            <h1>Support</h1>
+            <div class="user-box">
+                <span>Connecté : <strong id="current-user">…</strong></span>
+                <button id="logout-button" type="button" class="danger">Déconnexion</button>
+            </div>
+        </header>
+
+        <nav class="tabs" aria-label="Sections">
+            <button type="button" class="tab-button active" data-tab="tickets">Tickets</button>
+            <button type="button" class="tab-button" data-tab="overdue">En retard</button>
+            <button type="button" class="tab-button" data-tab="dashboard">Tableau de bord</button>
+        </nav>
+
+        <section class="tab-panel" data-tab-panel="tickets">
+            <h2>Tickets</h2>
+
+            <form id="ticket-filters" class="filters card">
+                <div class="field">
+                    <label for="filter-status">Statut</label>
+                    <select id="filter-status" name="status">
+                        <option value="">Tous</option>
+                        <option value="new">Nouveau</option>
+                        <option value="assigned">Assigné</option>
+                        <option value="in_progress">En cours</option>
+                        <option value="resolved">Résolu</option>
+                        <option value="closed">Clôturé</option>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label for="filter-priority">Priorité</label>
+                    <select id="filter-priority" name="priority">
+                        <option value="">Toutes</option>
+                        <option value="low">Basse</option>
+                        <option value="normal">Normale</option>
+                        <option value="high">Haute</option>
+                        <option value="urgent">Urgente</option>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label for="filter-assignee">Assigné (id)</label>
+                    <input id="filter-assignee" name="assigneeId" type="number" min="1" step="1" inputmode="numeric">
+                </div>
+
+                <div class="field">
+                    <label for="filter-created-from">Date de début</label>
+                    <input id="filter-created-from" name="createdFrom" type="datetime-local">
+                </div>
+
+                <div class="field">
+                    <label for="filter-created-to">Date de fin</label>
+                    <input id="filter-created-to" name="createdTo" type="datetime-local">
+                </div>
+
+                <div class="actions">
+                    <button type="submit" class="primary">Filtrer</button>
+                    <button id="tickets-reset" type="button">Réinitialiser</button>
+                </div>
+            </form>
+
+            <p id="tickets-error" class="error" role="alert"></p>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Id</th>
+                            <th>Titre</th>
+                            <th>Priorité</th>
+                            <th>Statut</th>
+                            <th>Assigné</th>
+                            <th>Créé le</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tickets-body"></tbody>
+                </table>
+            </div>
+
+            <div class="actions">
+                <button id="tickets-next" type="button" disabled>Suivant</button>
+            </div>
+
+            <section class="card">
+                <h3>Créer un ticket</h3>
+
+                <form id="ticket-create-form" class="form">
+                    <div class="field">
+                        <label for="ticket-title">Titre</label>
+                        <input id="ticket-title" name="title" type="text" maxlength="255" required>
+                    </div>
+
+                    <div class="field">
+                        <label for="ticket-description">Description</label>
+                        <textarea id="ticket-description" name="description" maxlength="10000" required></textarea>
+                    </div>
+
+                    <div class="field">
+                        <label for="ticket-priority">Priorité</label>
+                        <select id="ticket-priority" name="priority">
+                            <option value="low">Basse</option>
+                            <option value="normal" selected>Normale</option>
+                            <option value="high">Haute</option>
+                            <option value="urgent">Urgente</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <button type="submit" class="primary">Créer</button>
+                    </div>
+
+                    <p id="ticket-create-error" class="error" role="alert"></p>
+                    <p id="ticket-create-info" class="info" role="status"></p>
+                </form>
+            </section>
+        </section>
+
+        <section class="tab-panel" data-tab-panel="overdue" hidden>
+            <h2>En retard</h2>
+
+            <form id="overdue-form" class="filters card">
+                <div class="field">
+                    <label for="overdue-page">Page</label>
+                    <input id="overdue-page" name="page" type="number" min="1" step="1" value="1">
+                </div>
+
+                <div class="field">
+                    <label for="overdue-limit">Limite</label>
+                    <input id="overdue-limit" name="limit" type="number" min="1" max="100" step="1" value="50">
+                </div>
+
+                <div class="actions">
+                    <button type="submit" class="primary">Charger</button>
+                </div>
+            </form>
+
+            <p id="overdue-error" class="error" role="alert"></p>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Id</th>
+                            <th>Titre</th>
+                            <th>Priorité</th>
+                            <th>Statut</th>
+                            <th>Assigné</th>
+                            <th>Créé le</th>
+                        </tr>
+                    </thead>
+                    <tbody id="overdue-body"></tbody>
+                </table>
+            </div>
+
+            <div class="actions">
+                <button id="overdue-prev" type="button">Précédent</button>
+                <button id="overdue-next" type="button">Suivant</button>
+                <span id="overdue-total"></span>
+            </div>
+        </section>
+
+        <section class="tab-panel" data-tab-panel="dashboard" hidden>
+            <h2>Tableau de bord</h2>
+
+            <p id="dashboard-error" class="error" role="alert"></p>
+
+            <div class="totals">
+                <div class="total-card">
+                    <span>Total tickets</span>
+                    <strong id="dashboard-total">0</strong>
+                </div>
+                <div class="total-card">
+                    <span>Non assignés</span>
+                    <strong id="dashboard-unassigned">0</strong>
+                </div>
+                <div class="total-card">
+                    <span>En retard</span>
+                    <strong id="dashboard-overdue">0</strong>
+                </div>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Utilisateur</th>
+                            <th>Actifs</th>
+                            <th>Charge actuelle</th>
+                            <th>Capacité</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dashboard-users"></tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+{% endblock %}

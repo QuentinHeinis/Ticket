@@ -1,23 +1,272 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
     <head>
         <meta charset="UTF-8">
-        <title>{% block title %}Welcome!{% endblock %}</title>
-        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⚫️</text><text y=%221.3em%22 x=%220.2em%22 font-size=%2276%22 fill=%22%23fff%22>sf</text></svg>">
-        {% block stylesheets %}
-        {% endblock %}
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>{% block title %}Support{% endblock %}</title>
+        <style>
+            :root {
+                color-scheme: light;
+                --bg: #f4f6f8;
+                --surface: #ffffff;
+                --text: #1f2933;
+                --muted: #616e7c;
+                --border: #d9e2ec;
+                --primary: #2563eb;
+                --danger: #b42318;
+                --success: #067647;
+            }
 
-        {% block javascripts %}
-        {% endblock %}
+            * {
+                box-sizing: border-box;
+            }
 
-        {% set frankenphp_hot_reload = app.request.server.get('FRANKENPHP_HOT_RELOAD') %}
-        {% if frankenphp_hot_reload %}
-        <meta name="frankenphp-hot-reload:url" content="{{ frankenphp_hot_reload }}">
-        <script src="https://cdn.jsdelivr.net/npm/idiomorph"></script>
-        <script src="https://cdn.jsdelivr.net/npm/frankenphp-hot-reload/+esm" type="module"></script>
-        {% endif %}
+            [hidden] {
+                display: none !important;
+            }
+
+            body {
+                margin: 0;
+                font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+                line-height: 1.45;
+                color: var(--text);
+                background: var(--bg);
+            }
+
+            h1, h2, h3 {
+                margin: 0 0 0.75rem;
+                line-height: 1.2;
+            }
+
+            a {
+                color: var(--primary);
+            }
+
+            .container {
+                width: min(1100px, 100% - 2rem);
+                margin: 0 auto;
+                padding: 1.25rem 0 2rem;
+            }
+
+            .container.narrow {
+                width: min(460px, 100% - 2rem);
+                padding-top: 4rem;
+            }
+
+            .app-header {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                justify-content: space-between;
+                gap: 1rem;
+                padding-bottom: 1rem;
+                border-bottom: 1px solid var(--border);
+            }
+
+            .user-box {
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+            }
+
+            .tabs {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.5rem;
+                margin: 1.25rem 0;
+            }
+
+            .tab-button {
+                background: var(--surface);
+                border: 1px solid var(--border);
+            }
+
+            .tab-button.active {
+                color: #ffffff;
+                background: var(--primary);
+                border-color: var(--primary);
+            }
+
+            .card {
+                padding: 1rem;
+                margin-bottom: 1rem;
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: 8px;
+            }
+
+            .filters,
+            .form {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: flex-end;
+                gap: 0.75rem;
+            }
+
+            .form {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .field {
+                display: flex;
+                flex-direction: column;
+                gap: 0.25rem;
+                min-width: 9rem;
+            }
+
+            label {
+                font-size: 0.85rem;
+                font-weight: 600;
+                color: var(--muted);
+            }
+
+            input,
+            select,
+            textarea,
+            button {
+                font: inherit;
+            }
+
+            input,
+            select,
+            textarea {
+                width: 100%;
+                padding: 0.45rem 0.55rem;
+                color: inherit;
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: 6px;
+            }
+
+            textarea {
+                min-height: 5rem;
+                resize: vertical;
+            }
+
+            button {
+                padding: 0.45rem 0.8rem;
+                color: var(--text);
+                background: #e8eef6;
+                border: 1px solid transparent;
+                border-radius: 6px;
+                cursor: pointer;
+            }
+
+            button:hover:not(:disabled) {
+                filter: brightness(0.96);
+            }
+
+            button:disabled {
+                cursor: not-allowed;
+                opacity: 0.55;
+            }
+
+            button.primary {
+                color: #ffffff;
+                background: var(--primary);
+            }
+
+            button.danger {
+                color: #ffffff;
+                background: var(--danger);
+            }
+
+            .table-wrap {
+                overflow-x: auto;
+                margin-bottom: 0.75rem;
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: 8px;
+            }
+
+            table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+
+            th,
+            td {
+                padding: 0.5rem 0.6rem;
+                text-align: left;
+                vertical-align: top;
+                border-bottom: 1px solid var(--border);
+            }
+
+            th {
+                font-size: 0.85rem;
+                color: var(--muted);
+                background: #f8fafc;
+            }
+
+            tr:last-child td {
+                border-bottom: none;
+            }
+
+            .row-actions {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.35rem;
+                min-width: 16rem;
+            }
+
+            .row-actions input {
+                width: 7rem;
+            }
+
+            .row-actions select {
+                width: 11rem;
+            }
+
+            .actions {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 0.5rem;
+                margin-bottom: 1rem;
+            }
+
+            .error {
+                min-height: 1.25rem;
+                margin: 0.25rem 0;
+                color: var(--danger);
+                font-weight: 600;
+            }
+
+            .info {
+                min-height: 1.25rem;
+                margin: 0.25rem 0;
+                color: var(--success);
+                font-weight: 600;
+            }
+
+            .totals {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                gap: 0.75rem;
+                margin-bottom: 1rem;
+            }
+
+            .total-card {
+                padding: 0.9rem 1rem;
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: 8px;
+            }
+
+            .total-card span {
+                display: block;
+                font-size: 0.85rem;
+                color: var(--muted);
+            }
+
+            .total-card strong {
+                font-size: 1.6rem;
+            }
+        </style>
     </head>
     <body>
         {% block body %}{% endblock %}
+        <script src="/js/app.js" defer></script>
     </body>
 </html>
